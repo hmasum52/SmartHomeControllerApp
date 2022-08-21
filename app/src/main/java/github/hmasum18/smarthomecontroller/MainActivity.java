@@ -1,5 +1,6 @@
 package github.hmasum18.smarthomecontroller;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
@@ -16,8 +17,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.google.android.material.slider.Slider;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.IOException;
@@ -52,8 +55,6 @@ public class MainActivity extends AppCompatActivity {
         final ProgressBar progressBar = findViewById(R.id.progressBar);
         progressBar.setVisibility(View.GONE);
         final TextView textViewInfo = mVB.textViewInfo;
-        final ToggleButton buttonToggle = mVB.buttonToggle;
-        buttonToggle.setEnabled(false);
 
         // If a bluetooth device has been selected from SelectDeviceActivity
         String deviceName = getIntent().getStringExtra("deviceName");
@@ -64,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message msg){
+//                Log.d(TAG, msg.obj.toString());
                 switch (msg.what){
                     case CONNECTING_STATUS:
                         switch(msg.arg1){
@@ -71,7 +73,6 @@ public class MainActivity extends AppCompatActivity {
                                 toolbar.setSubtitle("Connected to " + deviceName);
                                 progressBar.setVisibility(View.GONE);
                                 buttonConnect.setEnabled(true);
-                                buttonToggle.setEnabled(true);
                                 break;
                             case -1:
                                 toolbar.setSubtitle("Device fails to connect");
@@ -125,24 +126,86 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // Button to ON/OFF LED on Arduino Board
-        buttonToggle.setOnClickListener(v -> {
-            String cmdText = null;
-            String btnState = buttonToggle.getText().toString().toLowerCase();
-            Log.d(TAG, btnState);
-            switch (btnState){
-                case "on":
-                    //buttonToggle.setText("Turn Off");
-                    // Command to turn on LED on Arduino. Must match with the command in Arduino code
-                    cmdText = "1";//"<turn on>";
-                    break;
-                case "off":
-                    //buttonToggle.setText("Turn On");
-                    // Command to turn off LED on Arduino. Must match with the command in Arduino code
-                    cmdText = "0";//"<turn off>";
-                    break;
+//        buttonToggle.setOnClickListener(v -> {
+//            String cmdText = null;
+//            String btnState = buttonToggle.getText().toString().toLowerCase();
+//            Log.d(TAG, btnState);
+//            switch (btnState){
+//                case "on":
+//                    //buttonToggle.setText("Turn Off");
+//                    // Command to turn on LED on Arduino. Must match with the command in Arduino code
+//                    cmdText = "1";//"<turn on>";
+//                    break;
+//                case "off":
+//                    //buttonToggle.setText("Turn On");
+//                    // Command to turn off LED on Arduino. Must match with the command in Arduino code
+//                    cmdText = "0";//"<turn off>";
+//                    break;
+//            }
+//            // Send command to Arduino board
+//            bluetoothConnector.sendMessage(cmdText);
+//        });
+
+        mVB.doorOpen.setOnCheckedChangeListener( (_a, isChecked) -> {
+            String cmdText = "";
+            if (!isChecked) {
+                cmdText = "0";
+                mVB.doorStatus.setText("Door Locked");
+            } else {
+                cmdText = "1";
+                mVB.doorStatus.setText("Door will automatically open");
             }
-            // Send command to Arduino board
             bluetoothConnector.sendMessage(cmdText);
+        });
+
+        mVB.lightOnOff.setVisibility(View.INVISIBLE);
+        mVB.lightAuto.setOnCheckedChangeListener( (_a, isChecked) -> {
+            String cmdText = "";
+            if (isChecked) {
+                cmdText = "4";
+                mVB.lightStatus.setText("Light will automatically turned on in darkness");
+                mVB.lightOnStatus.setText("Light Automatic");
+                mVB.slider.setVisibility(View.VISIBLE);
+                mVB.lightOnOff.setVisibility(View.INVISIBLE);
+            } else {
+                cmdText = "3";
+                mVB.lightStatus.setText("Light needs to be manually turned on/off");
+                mVB.lightOnStatus.setText("Light Off");
+                mVB.slider.setVisibility(View.INVISIBLE);
+                mVB.lightOnOff.setVisibility(View.VISIBLE);
+            }
+            bluetoothConnector.sendMessage(cmdText);
+        });
+
+        mVB.lightOnOff.setOnCheckedChangeListener( (_a, isChecked) -> {
+            String cmdText = "";
+            if (isChecked) {
+                cmdText = "2";
+                mVB.lightStatus.setText("Light needs to be manually turned on/off");
+                mVB.lightOnStatus.setText("Light Automatic");
+            } else {
+                cmdText = "3";
+                mVB.lightStatus.setText("Light needs to be manually turned on/off");
+                mVB.lightOnStatus.setText("Light Off");
+            }
+            bluetoothConnector.sendMessage(cmdText);
+        });
+
+        mVB.slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
+            @Override
+            public void onStartTrackingTouch(@NonNull Slider slider) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(@NonNull Slider slider) {
+                String cmdText = "5" + (char)Math.floor(slider.getValue()*125/1000);
+                String toast = "Sensitivity: " + (slider.getValue());
+                Toast.makeText(getApplicationContext(), toast, Toast.LENGTH_SHORT);
+                Log.e(TAG, "onStopTrackingTouch: "+cmdText);
+//                Log.e(TAG, "onStopTrackingTouch: " + "Sensitivity: " + (1000*slider.getValue()));
+                bluetoothConnector.sendMessage(cmdText);
+            }
         });
     }
 
